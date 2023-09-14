@@ -8,8 +8,8 @@ def main() -> None:
     row = int(sys.argv[3])
 
     with open(filename, newline="") as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=",")
-        print(list(spamreader)[col][row])
+        reader = csv.reader(csvfile, delimiter=",")
+        print(list(reader)[col][row])
 
 
 if __name__ == "__main__":
