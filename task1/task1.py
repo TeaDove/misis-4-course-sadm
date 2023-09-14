@@ -1,10 +1,10 @@
 import json
 import sys
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
 
 class Node:
-    def __init__(self, value: str, childred: list["Node"] | None = None, parent: Optional["Node"] = None) -> Self:
+    def __init__(self, value: str, childred: list["Node"] | None = None, parent: Optional["Node"] = None) -> None:
         if childred is None:
             childred = []
         self.childred: list["Node"] = []
