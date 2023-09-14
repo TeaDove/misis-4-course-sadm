@@ -1,8 +1,9 @@
 import sys
+
 import pandas as pd
 
 
-def main():
+def main() -> None:
     file = sys.argv[1]
     col = int(sys.argv[2])
     row = int(sys.argv[3])

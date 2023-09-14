@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 
-lint: 
-	pre-commit run -a 
+lint:
+	pre-commit run -a
 
 install:
 	python3.10 -m venv .venv

@@ -19,7 +19,6 @@ repos:
       - id: check-xml # checks .xml for errors
       - id: detect-aws-credentials # detects aws cred
       - id: detect-private-key # detects private keys
-      - id: no-commit-to-branch # prevent direct commit to master/main
       - id: requirements-txt-fixer # fixes requirements txt and sorts it
       # - id: name-tests-test
   - repo: https://github.com/pycqa/isort
