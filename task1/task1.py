@@ -4,20 +4,20 @@ from typing import Any, Optional
 
 
 class Node:
-    def __init__(self, value: str, childred: list["Node"] | None = None, parent: Optional["Node"] = None) -> None:
+    def __init__(self, value: str, childred: dict[str, "Node"] | None = None, parent: Optional["Node"] = None) -> None:
         if childred is None:
-            childred = []
-        self.childred: list["Node"] = []
+            childred = {}
+        self.childred: dict[str, "Node"] = childred
         self.value = value
         self.parent = parent
 
     def append(self, value: str) -> "Node":
         node = self.__class__(value, parent=self)
-        self.childred.append(node)
+        self.childred[value] = node
         return node
 
-    def __getitem__(self, idx: int) -> "Node":
-        return self.childred[idx]
+    def __getitem__(self, value: str) -> "Node":
+        return self.childred[value]
 
     def jsonable(self) -> dict[str, Any]:
         return {self.value: self._walk()}
@@ -27,8 +27,8 @@ class Node:
             return {}
 
         path: dict[str, Any] = {}
-        for child in self.childred:
-            path[child.value] = child._walk()
+        for key, child in self.childred.items():
+            path[key] = child._walk()
 
         return path
 
@@ -39,7 +39,7 @@ class Node:
         if self.value == value:
             return self
 
-        for child in self.childred:
+        for child in self.childred.values():
             if child.value == value:
                 return child
             try:
@@ -54,7 +54,7 @@ class Node:
     def append_from_dict(self, value: str, dict_: dict[str, Any], parent: Optional["Node"] = None) -> "Node":
         node = Node(value=value, parent=parent)
         for key, child_dict in dict_.items():
-            node.childred.append(node.append_from_dict(value=key, dict_=child_dict, parent=node))
+            node.childred[key] = node.append_from_dict(value=key, dict_=child_dict, parent=node)
 
         return node
 
@@ -65,48 +65,21 @@ class Node:
         root_key = list(dict_.keys())[0]
         root = Node(root_key)
         for key, child_dict in dict_[root_key].items():
-            root.childred.append(root.append_from_dict(value=key, dict_=child_dict, parent=root))
+            root.childred[key] = root.append_from_dict(value=key, dict_=child_dict, parent=root)
         return root
 
     def pprint(self) -> str:
         str_ = self.value
-        for child in self.childred:
+        for child in self.childred.values():
             str_ += f" {child.value}"
         if self.parent is not None:
             str_ += f" {self.parent.value}"
         str_ += "\n"
 
-        for child in self.childred:
+        for child in self.childred.values():
             str_ += child.pprint()
 
         return str_
-
-    # @classmethod
-    # def from_dict(cls, value: str, childred: , parent: Optional["Node"] = None) -> "Node":
-    #     node = Node(parent=parent, value=list(dict_.keys())[0])
-    #     for child_value in dict_.values():
-    #         node.append(Node.from_dict(child_value))
-
-    #     # 4: {1, 2, 3, 4}
-
-    #     return node
-
-    #     reader = list(csv.reader(csvfile, delimiter=","))
-    #     root = Node(reader[0][0])
-    #     for col in reader[0][1:]:
-    #         root.append(col)
-
-    #     for line in reader[1:]:
-    #         node = root.find(line[0])
-    #         if node is None:
-    #             node = root.append(line[0])
-
-    #         for col in reader[0][1:]:
-    #             if node.parent is not None and node.parent.value == col:
-    #                 continue
-
-    #             node.append(col)
-    # return root
 
 
 def example() -> None:
@@ -131,4 +104,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    example()
