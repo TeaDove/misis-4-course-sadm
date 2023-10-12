@@ -159,12 +159,12 @@ class Node:
     def self_entropy(self) -> float:
         entropy = 0.0
         for l_i_j in self.relation.to_row():
-            avg = l_i_j / (self.n - 1)
-            if avg <= 0:
+            p = l_i_j / (self.n - 1)
+            if p <= 0:
                 continue
 
-            log_ = math.log(avg, 2)
-            entropy += avg * log_
+            log_ = math.log(p, 2)
+            entropy += p * log_
 
         return -entropy
 
