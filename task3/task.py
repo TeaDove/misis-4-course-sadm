@@ -179,6 +179,46 @@ class Node:
 
         return entropy
 
+    def to_csv(self) -> str:
+        nodes: list[Node] = []
+        self.dfs(lambda node: nodes.append(node))
+        str_ = ""
+        for node in sorted(nodes, key=lambda node: node.value):
+            str_ += f"{node.relation.direct_management},{node.relation.direct_subordination},{node.relation.indirect_management},{node.relation.indirect_subordination},{node.relation.subordination}\n"
+
+        return str_.strip()
+
+
+def matrix_from_csv(input_: str) -> list[list[int]]:
+    matrix: list[list[int]] = []
+    for row in input_.splitlines():
+        matrix_row: list[int] = []
+        for col in row.split(","):
+            matrix_row.append(int(col))
+        matrix.append(matrix_row)
+
+    return matrix
+
+
+def full_entrypy_from_csv(input_: str) -> float:
+    matrix = matrix_from_csv(input_)
+    n = len(matrix)
+
+    full_entrypy = 0.0
+    for row in matrix:
+        entropy = 0.0
+        for rel in row:
+            p = rel / (n - 1)
+            if p <= 0:
+                continue
+
+            log_ = math.log(p, 2)
+            entropy += p * log_
+
+        full_entrypy += -entropy
+
+    return full_entrypy
+
 
 def example() -> None:
     root = Node("1")
@@ -194,11 +234,10 @@ def example() -> None:
     print(root.pprint())
 
 
+# TODO revork to from_csv
 def task(input_: str) -> float:
-    root = Node.from_str(input_)
-
-    return root.full_entropy()
+    return full_entrypy_from_csv(input_)
 
 
 if __name__ == "__main__":
-    print(task("1,2\n2,3\n2,4\n3,5\n3,6"))
+    print(task("1,0,4,0,0\n2,1,2,0,0\n2,1,0,1,1\n0,1,0,1,1\n0,1,0,2,1\n0,1,0,2,1"))
