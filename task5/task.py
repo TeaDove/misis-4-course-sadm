@@ -1,127 +1,137 @@
-import json
-
 import numpy as np
 
-ranging = list[str | list[str]]
 
+def parse_clusters(input_: str) -> list[list[int]]:
+    input_ = input_[1:-1]
+    data_split = input_.split(",")
+    clusters = []
+    in_cluster = False
+    for substring in data_split:
+        current_cluster = in_cluster
+        if "[" in substring:
+            substring = substring[1:]
+            in_cluster = True
+        if "]" in substring:
+            substring = substring[:-1]
+            in_cluster = False
 
-def flatten(v: ranging) -> list[str]:
-    new_v: list[str] = []
-    for item in v:
-        if isinstance(item, str):
-            new_v.append(item)
+        if not current_cluster:
+            clusters.append([int(substring)])
         else:
-            new_v.extend(item)
-    return sorted(new_v, key=lambda x: int(x))
+            clusters[-1].append(int(substring))
+    return clusters
 
 
-def is_lower(v: ranging, a: str, b: str) -> bool:
-    for item in v:
-        if isinstance(item, str):
-            if a == item:
-                return True
-            if b == item:
-                return False
-            continue
+def get_matrix_from_expert(str_json: str) -> np.ndarray:
+    matrix = []
+    n = 0
 
-        if a in item:
-            return b not in item
-        if b in item:
-            return a in item
-        continue
+    clusters = parse_clusters(str_json)
+    for cluster in clusters:
+        n += len(cluster)
+    for _ in range(n):
+        matrix.append([1] * n)
+
+    worse = []
+    for cluster in clusters:
+        for worse_elem in worse:
+            for elem in cluster:
+                matrix[elem - 1][worse_elem - 1] = 0
+        for elem in cluster:
+            worse.append(int(elem))
+
+    return np.array(matrix)
 
 
-def get_matrix(v: ranging) -> np.ndarray:
-    flat_v = flatten(v)
-    matrix = np.zeros(shape=(len(flat_v), len(flat_v)), dtype="int64")
+def compile_and_matrix(matrix1: np.ndarray, matrix2: np.ndarray) -> np.ndarray:
+    rows = len(matrix1)
+    cols = len(matrix1[0])
+    matrix = []
+    for _ in range(rows):
+        matrix.append([0] * cols)
 
-    for i_x, i_v in enumerate(flat_v):
-        for j_x, j_v in enumerate(flat_v):
-            if i_v == j_v or not is_lower(v, i_v, j_v):
-                matrix[i_x, j_x] = 1
-                continue
+    for row in range(rows):
+        for col in range(cols):
+            matrix[row][col] = matrix1[row][col] * matrix2[row][col]
+
+    return np.array(matrix)
+
+
+def compile_or_matrix(matrix1: np.ndarray, matrix2: np.ndarray) -> list[list[int]]:
+    rows = len(matrix1)
+    cols = len(matrix1[0])
+    matrix = []
+    for _ in range(rows):
+        matrix.append([0] * cols)
+
+    for row in range(rows):
+        for col in range(cols):
+            matrix[row][col] = max(matrix1[row][col], matrix2[row][col])
 
     return matrix
 
 
-def get_controversy_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    y_a_b = np.multiply(a, b)
-    y_a_b_ = np.multiply(np.transpose(a), np.transpose(b))
+def get_clusters(matrix: list[list[int]], est1: np.ndarray, est2: np.ndarray) -> list[int | list[int]]:  # noqa: C901
+    clusters = {}
 
-    result = np.zeros(a.shape, dtype="int64")
-    for idx in range(len(y_a_b)):
-        for jdx in range(len(y_a_b[idx])):
-            result[idx, jdx] = y_a_b[idx, jdx] or y_a_b_[idx, jdx]
-    return result
+    rows = len(matrix)
+    cols = len(matrix[0])
+    exclude = []
+    for row in range(rows):
+        if row + 1 in exclude:
+            continue
+        clusters[row + 1] = [row + 1]
+        for col in range(row + 1, cols):
+            if matrix[row][col] == 0:
+                clusters[row + 1].append(col + 1)
+                exclude.append(col + 1)
 
+    result = []
+    for k in clusters:
+        if not result:
+            result.append(clusters[k])
+            continue
+        for i, elem in enumerate(result):
+            if np.sum(est1[elem[0] - 1]) == np.sum(est1[k - 1]) and np.sum(est2[elem[0] - 1]) == np.sum(est2[k - 1]):
+                for c in clusters[k]:
+                    result[i].append(c)
+                    break
 
-def find_controversy_pairs(v: np.ndarray) -> list[tuple[str, str]]:
-    res = []
-    for idx, i in enumerate(v):
-        for jdx, j in enumerate(i):
-            if idx < jdx:
-                continue
-            if j == 0:
-                res.append((str(jdx + 1), str(idx + 1)))
+            if np.sum(est1[elem[0] - 1]) < np.sum(est1[k - 1]) or np.sum(est2[elem[0] - 1]) < np.sum(est2[k - 1]):
+                result = result[:i] + clusters[k] + result[i:]
+                break
+        result.append(clusters[k])
 
-    return res
-
-
-def expand_list(ranks: ranging) -> list[str]:
-    expanded_ranks = []
-    for element in ranks:
-        if isinstance(element, list):
-            expanded_ranks.extend(element)
+    final = []
+    for r in result:
+        if len(r) == 1:
+            final.append(r[0])
         else:
-            expanded_ranks.append(element)
-    return sorted(expanded_ranks, key=lambda x: int(x))
+            final.append(r)
+    return final
 
 
-def compile_ranging(controversy_pairs: list[tuple[str, str]], a: ranging, b: ranging) -> ranging:
-    expanded_a = expand_list(a)
-    expanded_b = expand_list(b)
-    print(f"{expanded_a=}")
-    print(f"{expanded_b=}")
-    final_ranking = []
+def task(ranging1: str, ranging2: str) -> str:
+    mx1 = get_matrix_from_expert(ranging1)
+    print(f"{mx1}")
+    mx2 = get_matrix_from_expert(ranging2)
+    print(f"{mx2}")
 
-    added_items = set()
+    mx_and = compile_and_matrix(mx1, mx2)
+    print(f"{mx_and}")
+    mx_and_t = compile_and_matrix(np.transpose(mx1), np.transpose(mx2))
+    print(f"{mx_and_t}")
 
-    for item in expanded_a + expanded_b:
-        if item not in added_items:
-            controversy_group = [item]
-            for pair in controversy_pairs:
-                if item in pair:
-                    other_item = pair[0] if pair[1] == item else pair[1]
-                    controversy_group.append(other_item)
-
-            if len(controversy_group) > 1:
-                final_ranking.append(controversy_group)
-            else:
-                final_ranking.append(item)
-
-            added_items.update(controversy_group)
-
-    return final_ranking
-    # return ["1", "2", "3", "4", "5", "6", "7", ["8", "9"], "10"]
-
-
-def task(a_: str, b_: str) -> ranging:
-    a = get_matrix(json.loads(a_))
-    b = get_matrix(json.loads(b_))
-    controversy_matrix = get_controversy_matrix(a, b)
-
-    controversy_pairs = find_controversy_pairs(controversy_matrix)
-    print(f"{controversy_pairs=}")
-
-    return compile_ranging(controversy_pairs, json.loads(a_), json.loads(b_))
+    mx_or = compile_or_matrix(mx_and, mx_and_t)
+    print(f"{mx_or}")
+    clusters = get_clusters(mx_or, mx1, mx2)
+    print(f"{clusters=}")
+    return str(clusters)
 
 
 if __name__ == "__main__":
-    a = '["1", ["2", "3"], "4", ["5", "6", "7"], "8", "9", "10"]'
-    b = '[["1", "2"], ["3", "4", "5"], "6", "7", "9", ["8", "10"]]'
-    c = '["3", ["1", "4"], "2", "6", ["5", "7", "8"], ["9", "10"]]'
-
-    assert ["1", "2", "3", "4", "5", "6", "7", ["8", "9"], "10"] == task(a, b)  # noqa: S101
-
-    print(task(a, c))  # [["1", "3"], ["2", "4"], ]
-    print(task(b, c))
+    assert (  # noqa: S101
+        task("[1,[2,3],4,[5,6,7],8,9,10]", "[[1,2],[3,4,5],6,7,9,[8,10]]") == "[1, 2, 3, 4, 5, 6, 7, [8, 9], 10]"
+    )
+    assert task("[2, 3, 1]", "[1, 2, 3]") == "[[1, 2, 3]]"  # noqa: S101
+    assert task("[1, 2, 3]", "[1, 2, 3]") == "[1, 2, 3]"  # noqa: S101

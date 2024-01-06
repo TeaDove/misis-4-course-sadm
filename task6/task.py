@@ -1,9 +1,9 @@
 import numpy as np
 
 
-def extract_clusters(data_string: str) -> list[list[int]]:
-    data_string = data_string[1:-1]
-    data_split = data_string.split(",")
+def parse_clusters(input_: str) -> list[list[int]]:
+    input_ = input_[1:-1]
+    data_split = input_.split(",")
     clusters = []
     in_cluster = False
     for substring in data_split:
@@ -26,7 +26,7 @@ def generate_matrix_from_expert(data_str: str) -> np.ndarray:
     matrix = []
     n = 0
 
-    clusters = extract_clusters(data_str)
+    clusters = parse_clusters(data_str)
     print(f"{data_str=}")
     print(f"{clusters=}")
     for cluster in clusters:
