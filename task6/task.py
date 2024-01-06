@@ -1,62 +1,98 @@
-import json
-import math
+import numpy as np
 
 
-def row_mean_difference_squared(row: list[int], mean: float) -> float:
-    return (sum(v for v in row) - mean) ** 2
+def extract_clusters(data_string: str) -> list[list[int]]:
+    data_string = data_string[1:-1]
+    data_split = data_string.split(",")
+    clusters = []
+    in_cluster = False
+    for substring in data_split:
+        current_cluster = in_cluster
+        if "[" in substring:
+            substring = substring[1:]
+            in_cluster = True
+        if "]" in substring:
+            substring = substring[:-1]
+            in_cluster = False
+
+        if not current_cluster:
+            clusters.append([int(substring)])
+        else:
+            clusters[-1].append(int(substring))
+    return clusters
 
 
-def calculate_candlle_coefficient(rank_matrix: list[list[int]], num_of_ratings: int) -> float:
-    mean = (num_of_ratings + 1) / (2 * num_of_ratings)
-    print(f"{mean=}")
+def generate_matrix_from_expert(data_str: str) -> np.ndarray:
+    matrix = []
+    n = 0
 
-    sum_ = 0
-    for rating in range(1, num_of_ratings + 1):
-        sum_ += math.pow(num_of_ratings * rating - mean, 2)
+    clusters = extract_clusters(data_str)
+    print(f"{data_str=}")
+    print(f"{clusters=}")
+    for cluster in clusters:
+        n += len(cluster)
 
-    variance_max = sum_ / num_of_ratings - 1
-    print(f"{variance_max=}")
+    for _ in range(n):
+        matrix.append([1] * n)
 
-    variance = 0
-    for row in rank_matrix:
-        variance += row_mean_difference_squared(row, mean)
+    exclusion_list = []
+    for cluster in clusters:
+        for excluded_elem in exclusion_list:
+            for elem in cluster:
+                matrix[elem - 1][excluded_elem - 1] = 0
 
-    variance = variance / (num_of_ratings - 1)
+        for elem in cluster:
+            exclusion_list.append(int(elem))
 
-    return variance / variance_max
+    return np.array(matrix)
 
 
-def task(*args: str) -> float:
-    args_parsed = [json.loads(arg) for arg in args]
+def calculate_kendall_similarity(experts: list[np.ndarray]) -> float:
+    m = len(experts)
+    n = len(experts[0])
 
-    num_of_experts, num_of_ratings = len(args), len(args_parsed[0])
+    rank_matrix: list[list[int]] = [[0 for _ in range(len(experts))] for _ in range(len(experts[0]))]
 
-    available_keys = sorted((x for x in args_parsed[0]))
-    print(f"{num_of_experts=}, {num_of_ratings=}, {available_keys=}")
+    for i, expert in enumerate(experts):
+        for j, obj in enumerate(expert):
+            rank_matrix[j][i] = len(obj) - np.sum(obj) + 1
 
-    ranked_ratings = []
-    for i in range(num_of_experts):
-        row = []
-        for j in range(num_of_ratings):
-            row.append(args_parsed[i].index(available_keys[j]) + 1)
-        ranked_ratings.append(row)
+    H = 0
+    for i in range(m):
+        d: dict[int, int] = {}
+        for obj in rank_matrix:
+            if d.get(obj[i]) is None:
+                d[obj[i]] = 0
+            d[obj[i]] = d[obj[i]] + 1
 
-    print(f"{ranked_ratings=}")
-    return calculate_candlle_coefficient(ranked_ratings, num_of_ratings)
+        for k in d:
+            H += d[k] ** 3 - d[k]
+
+        for j, obj in enumerate(rank_matrix):
+            rank_matrix[j][i] = rank_matrix[j][i] + (d[obj[i]] - 1) / 2
+
+    x_mean = np.sum(rank_matrix) / n
+
+    s = 0
+    for obj_ranks in rank_matrix:
+        xi = np.sum(obj_ranks)
+        s += (xi - x_mean) ** 2
+
+    d_max = (m * m * (n**3 - n) - m * H) / 12
+
+    return s / d_max
+
+
+def task(*rangins: str) -> float:
+    print(f"{rangins=}")
+    matrixes = [generate_matrix_from_expert(ranging) for ranging in rangins]
+    similarity = calculate_kendall_similarity(matrixes)
+    print(f"{similarity=}\n\n")
+    return similarity
 
 
 if __name__ == "__main__":
-    # print(
-    #     task(
-    #         "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
-    #         "[1, 2,3,4,5,6,7,9,8, 10]",
-    #         "[3,1,4,2,6,5,7,8,9,10]",
-    #     )
-    # )
-    print(
-        task(
-            "[2, 3, 1]",
-            "[1, 2, 3]",
-            "[3, 1, 2]",
-        )
-    )
+    assert task("[1,[2,3],4,[5,6,7],8,9,10]", "[[1,2],[3,4,5],6,7,9,[8,10]]") == 0.9623824451410659  # noqa: S101
+    assert task("[2, 3, 1]", "[1, 2, 3]") == 0.25  # noqa: S101
+    assert task("[1, 2, 3]", "[1, 2, 3]") == 1.0  # noqa: S101
+    assert task("[1, 2, 3]", "[1, 2, 3]", "[1, 2, 3]") == 1.0  # noqa: S101

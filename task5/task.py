@@ -67,8 +67,42 @@ def find_controversy_pairs(v: np.ndarray) -> list[tuple[str, str]]:
     return res
 
 
+def expand_list(ranks: ranging) -> list[str]:
+    expanded_ranks = []
+    for element in ranks:
+        if isinstance(element, list):
+            expanded_ranks.extend(element)
+        else:
+            expanded_ranks.append(element)
+    return sorted(expanded_ranks, key=lambda x: int(x))
+
+
 def compile_ranging(controversy_pairs: list[tuple[str, str]], a: ranging, b: ranging) -> ranging:
-    return ["1", "2", "3", "4", "5", "6", "7", ["8", "9"], "10"]
+    expanded_a = expand_list(a)
+    expanded_b = expand_list(b)
+    print(f"{expanded_a=}")
+    print(f"{expanded_b=}")
+    final_ranking = []
+
+    added_items = set()
+
+    for item in expanded_a + expanded_b:
+        if item not in added_items:
+            controversy_group = [item]
+            for pair in controversy_pairs:
+                if item in pair:
+                    other_item = pair[0] if pair[1] == item else pair[1]
+                    controversy_group.append(other_item)
+
+            if len(controversy_group) > 1:
+                final_ranking.append(controversy_group)
+            else:
+                final_ranking.append(item)
+
+            added_items.update(controversy_group)
+
+    return final_ranking
+    # return ["1", "2", "3", "4", "5", "6", "7", ["8", "9"], "10"]
 
 
 def task(a_: str, b_: str) -> ranging:
@@ -77,13 +111,17 @@ def task(a_: str, b_: str) -> ranging:
     controversy_matrix = get_controversy_matrix(a, b)
 
     controversy_pairs = find_controversy_pairs(controversy_matrix)
+    print(f"{controversy_pairs=}")
+
     return compile_ranging(controversy_pairs, json.loads(a_), json.loads(b_))
 
 
 if __name__ == "__main__":
-    print(
-        task(
-            '["1", ["2", "3"], "4", ["5", "6", "7"], "8", "9", "10"]',
-            '[["1", "2"],["3","4","5"],"6","7","9",["8", "10"]]',
-        )
-    )
+    a = '["1", ["2", "3"], "4", ["5", "6", "7"], "8", "9", "10"]'
+    b = '[["1", "2"], ["3", "4", "5"], "6", "7", "9", ["8", "10"]]'
+    c = '["3", ["1", "4"], "2", "6", ["5", "7", "8"], ["9", "10"]]'
+
+    assert ["1", "2", "3", "4", "5", "6", "7", ["8", "9"], "10"] == task(a, b)  # noqa: S101
+
+    print(task(a, c))  # [["1", "3"], ["2", "4"], ]
+    print(task(b, c))
